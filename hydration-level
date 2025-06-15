@@ -1,0 +1,116 @@
+import pandas as pd
+import pickle
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings("ignore", message="X does not have valid feature names, but RandomForestClassifier was fitted with feature names")
+data = pd.read_csv("hydration level.csv")
+column_names = ["sweat_rate","respiration_rate","body_temperature","movement_rate","blood_oxygen_level","body_movement","sleep_rate","heart_rate","Hydration_Level"]
+df = data.iloc[1:]
+df.columns = column_names
+# df.drop(columns=["respiration_rate","movement_rate","body_movement","sleep_rate","heart_rate"],inplace=True)
+df.info()
+df.isna()
+df.isna().sum()
+df.hist(figsize=(15,10),xlabelsize=10,ylabelsize=12)
+plt.show()
+sns.countplot(x='Hydration_Level', data=df)
+sns.set()  # Set seaborn style
+sns.heatmap(df.corr(), annot=True)
+
+# Add labels and title
+plt.xlabel('X-axis')
+plt.ylabel('Y-axis')
+plt.title('Heatmap')
+
+# Display the heatmap
+plt.show()
+X = df.drop(columns="Hydration_Level") # input features
+y = df["Hydration_Level"] # target
+
+print(X)
+X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.3,random_state=43)
+
+print("Training data:",X_train.shape)
+print("Testing data:",X_test.shape)
+scaler = StandardScaler()
+
+# Fit and transform X_train
+X_train_scaled = scaler.fit_transform(X_train)
+
+# Transform X_test using the same scaler
+X_test_scaled = scaler.transform(X_test)
+print("Input features:\n",X_train_scaled)
+classifier = DecisionTreeClassifier(random_state=42)
+classifier.fit(X_train_scaled,y_train)
+y_pred1 = classifier.predict(X_test_scaled)
+Accuracy = accuracy_score(y_pred1,y_test)
+print("Accuracy score for decission tree:",Accuracy*100)
+rfclassifier = RandomForestClassifier(max_depth=20, random_state=92)
+rfclassifier.fit(X_train_scaled,y_train)
+feature_names = X.columns
+y_pred2 = rfclassifier.predict(X_test_scaled)
+Accuracy = accuracy_score(y_pred2,y_test)
+print("Accuracy score for Random forest:",Accuracy*100)
+xgboost = XGBClassifier(max_depth=5060)
+xgboost.fit(X_train_scaled,y_train)
+y_pred3 = xgboost.predict(X_test_scaled)
+Accuracy = accuracy_score(y_pred3,y_test)
+print("Accuracy score for XGB:",Accuracy*100)
+svc = SVC(kernel='sigmoid')
+svc.fit(X_train_scaled,y_train)
+y_pred4 = svc.predict(X_test_scaled)
+Accuracy = accuracy_score(y_pred4,y_test)
+print("Accuracy score for SVC:",Accuracy*100)
+with open('RFmodel_pkl' , 'wb') as f:
+    pickle.dump(rfclassifier,f)
+with open('RFmodel_pkl' , 'rb') as f:
+    RF = pickle.load(f)
+import pandas as pd
+import pickle
+
+def model_prediction(input):
+    data = input
+
+    # Define column names as needed
+    columns = ["sweat_rate", "respiration_rate", "body_temperature", "movement_rate", "blood_oxygen_level", "body_movement", "sleep_rate", "heart_rate"]
+
+    df = pd.DataFrame([data], columns=columns)
+
+    # Assuming you have a StandardScaler object named 'scaler'
+    scaled_data = scaler.transform(df)
+
+    with open('RFmodel_pkl', 'rb') as f:
+        RF = pickle.load(f)
+
+    prediction = RF.predict(scaled_data)
+    Output = ""
+
+    if prediction == [0]:
+        Output = Output + "Under hydrated"
+    elif prediction == [1]:
+        Output = Output + "Need bit more hydration"
+    elif prediction == [2]:
+        Output = Output + "Hydrated"
+    elif prediction == [3]:
+        Output = Output + "Very well hydrated,"
+    elif prediction == [4]:
+        Output = Output + "Over hydrated"
+
+    return Output
+print(model_prediction([0.0, 0.00, 92.552, 65.880, 27.504, 66.880, 64.256, 0.552]))
+print(model_prediction([60,20,96,10,95,85,7,60]))
+print(model_prediction([23.504,27.504,8.880,17.75,284.256,11.88,0.000,25.76]))
+accplot = sns.barplot(x=['DT', 'RF','XGB','SVC'], y=[accuracy_score(y_pred1, y_test), accuracy_score(y_pred2, y_test), accuracy_score(y_pred3, y_test),accuracy_score(y_pred4, y_test)])
+accplot.set_title("Accuracy Comparison")
+accplot.set_xlabel("Models")
+accplot.set_ylabel("Accuracy")
